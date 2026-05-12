@@ -116,8 +116,19 @@
 ### D18. 数据库 = Postgres + pgvector
 - **理由：** 一套搞定关系+向量；运维简单；MVP 阶段够用；性能瓶颈再迁 Qdrant/Milvus。
 
-### D19. LLM = Claude Sonnet 4.6（开荒）+ Haiku 4.5（路由/接住）
-- **理由：** 开荒用强模型保质量；实时路由用 Haiku 控成本和延迟。
+### D19. LLM Provider 策略：主线 Kimi K2（OpenAI 兼容）+ Anthropic 作为对比与备选
+- **决策时间：** 2026-05-12（修订自原 D19）
+- **原决策（已废弃）：** Claude Sonnet 4.6（开荒）+ Haiku 4.5（路由/接住）
+- **修订理由：**
+  - **成本**：Kimi K2 价格约为 Anthropic 的 1/5，MVP 自用 + 夜间装订批处理对账单友好
+  - **学习覆盖面**：OpenAI 兼容协议 = 一套 schema 通吃 DS / Kimi / 智谱 / 通义 / 阶跃 / 本地 vLLM，国内 Agent 岗主流
+  - **Agentic 能力**：Kimi K2（2025）在 tool use / 中文 / 长上下文（200k）已达国产第一梯队
+  - **简历分量**：Agent 系统含金量在自己实现的 Concierge / 分区 / 五层记忆 / Soul，与底层 provider 无关
+- **影响：**
+  - 主线代码用 `openai` SDK + `base_url=https://api.moonshot.cn/v1`
+  - D3 学习仍 dump 一次 Anthropic 响应做对比，建立跨 provider 肌肉记忆（OpenAI chat completions vs Anthropic content blocks）
+  - 装订手帐的 batch worker 在成本敏感时可切到 DeepSeek（DS 也是 OpenAI 兼容，改 base_url 即可）
+- **未做：** **不预先抽象 LLMClient 协议**——D3 先 hardcode Kimi 跑通，W2 service 层稳定后再抽，避免过度设计（违反"简洁优先"红线）
 
 ### D20. 手机端 / 后端框架 = 待定
 - **决策时机：** 下次会话讨论。

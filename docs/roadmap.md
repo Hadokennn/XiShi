@@ -29,9 +29,10 @@
 
 ### W1（D1–D7）：Python 后端三件套
 
-- 概念：① **async/await**（事件循环 + coroutine + await 链）② **Pydantic v2** ③ FastAPI 基础
-- 产出：100 行路由 demo（FastAPI + anthropic SDK + Haiku 路由 zone）
+- 概念：① **async/await**（事件循环 + coroutine + await 链）② **Pydantic v2** ③ **Typer CLI + service 分层**（领域逻辑写 `xishi.service.*`，CLI 直接 import）
+- 产出：100 行 CLI demo（`xishi route "..."` → service 层调 anthropic SDK → Haiku 路由 zone）；FastAPI `/health` 路由作为 M3 接口骨架保留，不在主路径展开
 - 风险：⚠️ **三个新概念同时上，整个路线最危险的一周**。W1 末未跑通 → 降到 4h/天，重谈 timeline
+- **CLI/HTTP 边界（不可破）**：领域逻辑只写在 service 层；CLI handler 与未来 FastAPI 路由都是入口，不在入口写业务
 
 ### W2（D8–D14）：DB + LLM 核心
 
@@ -56,8 +57,8 @@
 
 ### W6（D36–D42）：异步装订 + 亲子 Worker
 
-- 概念：⑯ 异步任务（BackgroundTask vs APScheduler） ⑰ **Prompt caching** ⑱ Episodic 简化提取
-- 产出：异步装订 CLI 命令；亲子 Worker；Episode 草拟（status=draft）
+- 概念：⑯ 异步任务（**cron + `xishi bind` 命令** vs FastAPI BackgroundTask vs APScheduler——MVP 阶段选 cron 最简） ⑰ **Prompt caching** ⑱ Episodic 简化提取
+- 产出：异步装订 CLI 命令（`xishi bind --date today`）；亲子 Worker；Episode 草拟（status=draft）
 
 ### W6.5（D43–D45）：投递材料整理
 
@@ -162,4 +163,4 @@ GAP 期是燃尽高发期，必须刻意警惕。出现以下任意一条，立�
 
 ---
 
-**最后更新**：2026-05-07（节奏锁定，准备 D1 启动）
+**最后更新**：2026-05-09（W1 入口从 FastAPI server 调整为 Typer CLI + service 分层，详见 ADR-0001 修订节）

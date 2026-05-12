@@ -1,6 +1,6 @@
 # ADR-0001: 后端技术栈选型
 
-- **状态**：Accepted
+- **状态**：Accepted（2026-05-09 修订：拆分 CLI 入口与 service 层）
 - **日期**：2026-05-09
 - **决策者**：作者（GAP 期全职 / FE → Agent 全栈转型）
 
@@ -18,7 +18,9 @@
 | 维度 | 选择 | 替代 |
 |---|---|---|
 | 语言 | **Python 3.13** | Node.js / Go |
-| Web 框架 | **FastAPI** | Flask / Django / Starlette |
+| MVP 入口 | **Typer CLI**（直接 import service 模块，不起 server） | 直接 FastAPI server + httpx 客户端 / Click |
+| Service 层 | **普通 async 模块**（`xishi.service.*`，承载领域逻辑） | 把逻辑写进 CLI handler / 写进 FastAPI 路由 |
+| HTTP 接口 | **FastAPI（M3 钩子，仅保留 `/health` 占位）** | 不留任何 HTTP 入口 / 现在就铺路由 |
 | 数据库 | **Postgres 17 + pgvector** | SQLite + Chroma / Postgres 16 |
 | 数据库驱动 | **asyncpg** | psycopg3 / SQLAlchemy ORM |
 | 校验 | **Pydantic v2** | dataclass + 手写 / attrs |
@@ -34,12 +36,38 @@
 - 转型目标是 Agent 全栈，Python 是该领域的"母语"
 - 作者已有 Python 脚本基础，避免再学一门语言挤压学习预算
 
-### 为什么 FastAPI
+### 为什么 Typer CLI 作为 MVP 入口，而不是直接起 FastAPI server
 
-- 原生 async（uvicorn → starlette → 路由全链路 async friendly），匹配 LLM IO 密集场景
-- Pydantic 集成 = schema/校验/OpenAPI 文档一套出来
-- 学习曲线友好，文档质量高
-- 替代分析：Flask 同步阻塞，async LLM 调用会浪费连接；Django 太重，且 ORM 默认同步
+最初版本写的是"FastAPI 作为 Web 框架"，2026-05-09 修订时被自己反问推翻：D60 MVP 是 **CLI**，作者自己用，**没有任何 HTTP 客户端**——起 server 再 curl 它属于纯过度工程。
+
+- **Typer 直接 import service 模块**：CLI handler 调 `await xishi.service.atom.create(...)`，零 HTTP 跳板
+- async 跟入口框架无关——Typer 命令体内一样能 `asyncio.run(...)` 跑 anthropic SDK
+- 异步装订 = cron 每晚跑一次 `xishi bind`，比常驻 server + APScheduler 简单一个数量级
+- Typer 自带子命令解析、help、参数校验，省掉 FastAPI 写路由 + 注册 + 起 server 的样板
+- 选 Typer 而非 Click：原生 type hint → 命令签名（与 Pydantic / FastAPI 一脉相承的体验），同作者 tiangolo 维护
+
+替代方案分析：
+
+- **Click**：成熟但要装饰器手写 `@click.option`，type hint 不直接驱动
+- **直接起 FastAPI server**：每天调试都要先 `uvicorn`，链路长一截；MVP 阶段没有任何客户端会调它
+
+### 为什么 FastAPI 仍然保留（作为 service 层 + M3 钩子）
+
+不删 FastAPI 的两个理由：
+
+- **M3 加前端/手机端时不用重写**：service 层（`xishi.service.*`）是普通 async 模块，CLI 直接 import；未来 FastAPI 路由也只是另一个 import service 的入口。两套入口共享同一份领域逻辑
+- **W1-D2 已写的 `/health` 路由保留为接口骨架**：定位降级为"M3 接口预留"，不在 D60 主路径上展开
+
+边界明确（重要）：
+
+- **D60 之前**：仅保留 `/health`；不写 server 化的 Atom/Concierge 路由
+- **M3**：service 层套上 FastAPI 路由 + 前端调用，零改动 service
+
+替代分析：
+
+- Flask 同步阻塞，async LLM 调用浪费连接
+- Django 太重，且 ORM 默认同步
+- 不用任何 web 框架（纯 service + Typer）：M3 加前端时还得选一次，不如现在锁定
 
 ### 为什么 Postgres 17（偏离 roadmap 写的 16）
 
@@ -79,7 +107,8 @@
 
 - 技术栈整条链路 async-native，不会出现"一个同步调用毁掉并发"的问题
 - 每个组件都能在面试时讲清楚原理
-- 学习路径清晰：W1 三件套（async/Pydantic/FastAPI）→ W2 DB/SDK → W3 schema/pgvector
+- 学习路径清晰：W1 三件套（async/Pydantic/Typer + service 分层）→ W2 DB/SDK → W3 schema/pgvector
+- CLI/HTTP 边界从 D1 就锁死：领域逻辑只能写在 `xishi.service.*`，CLI 与未来路由都是入口而已
 
 **负向**
 

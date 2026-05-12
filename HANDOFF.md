@@ -56,7 +56,8 @@ XiShi/
 
 **技术栈（已敲定 D1 用的）**
 
-- 后端：**Python 3.12+ + FastAPI + asyncpg + Pydantic v2**
+- 后端：**Python 3.13 + Typer CLI（MVP 入口）+ async service 层 + asyncpg + Pydantic v2**
+- HTTP 层：**FastAPI 仅保留 `/health` 作为 M3 接口骨架，D60 之前不展开路由**（CLI 直接 import service，不起 server）
 - 数据库：**Postgres 16 + pgvector**（HNSW 索引）
 - LLM：Claude Sonnet 4.6（开荒）+ Haiku 4.5（路由），通过 `anthropic` SDK 调用
 - 编排：**裸写**（不用 LangChain / LangGraph / Claude Agent SDK）
@@ -79,9 +80,9 @@ XiShi/
 
 | 概念（学） | 产出（做） |
 |---|---|
-| ① async / await | 100 行路由 demo：FastAPI + anthropic SDK + Haiku 路由 zone |
+| ① async / await | 100 行 CLI demo：`xishi route "..."` → service 层调 anthropic SDK → Haiku 路由 zone |
 | ② Pydantic v2 | （demo 内含 schema 校验） |
-| ③ FastAPI 基础 | （demo 跑通即满足） |
+| ③ Typer CLI + service 分层 | CLI handler 直接 import `xishi.service.*`，FastAPI `/health` 已就位作为 M3 钩子 |
 
 **D1 必做的 5 件事**（启动日清单）
 
@@ -89,7 +90,7 @@ XiShi/
 2. 安装 Python 3.12 + uv（包管理）
 3. Postgres 16 + pgvector 在本地跑起来
 4. 创建 `.env.example` + `.gitignore`（API key 隔离）
-5. 创建 `docs/adr/0001-stack-choice.md`：记录"为什么选 Python+FastAPI+裸写"
+5. 创建 `docs/adr/0001-stack-choice.md`：记录"为什么选 Python + Typer CLI + FastAPI service 分层 + 裸写"
 
 **W1 末 checkpoint**：
 
@@ -112,4 +113,4 @@ XiShi/
 
 ---
 
-**最后更新：** 2026-05-07（节奏锁定，待 D1 启动）
+**最后更新：** 2026-05-09（W1-D2 修订：Typer CLI 取代"直接起 FastAPI server"作为 MVP 入口；FastAPI 降级为 service 层 + M3 钩子。详见 ADR-0001 修订节）
