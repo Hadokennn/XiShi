@@ -6,8 +6,11 @@ base_url + model id。等出现真协议不兼容的 provider（如 Anthropic）
 """
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
+
 from openai import AsyncOpenAI
+
 from xishi.config import settings
 
 @dataclass(frozen=True)
@@ -61,3 +64,35 @@ async def ask(text: str, model: str = "ds", max_tokens: int = 256) -> str:
         messages=[{"role": "user", "content": text}],
     )
     return response.choices[0].message.content or ""
+
+
+async def ask_stream(
+    text: str, model: str = "ds", max_tokens: int = 1024
+) -> AsyncIterator[str]:
+    """流式问 LLM，按 chunk yield 文本片段。
+
+    跨 provider 兼容性（D5 observe 实测）：
+    - Kimi 在 finish_reason='stop' 后还会多送一个 choices=[] 的 trailing chunk
+      （用来携带顶层 usage）——盲取 choices[0] 会 IndexError，必须先判空
+    - Kimi 最后一个有效 chunk 的 delta.content 是 None，DS 是 ''
+      用 `if delta.content:` 两者都能干净跳过
+    - max_tokens 默认 1024：流式输出常用于"长回复"，沿用 ask 的 256 会被截断
+    """
+    if model not in MODELS:
+        raise ValueError(f"unknown model alias: {model!r}, available: {sorted(MODELS)}")
+
+    cfg = MODELS[model]
+    client = _client_for(cfg.provider)
+
+    stream = await client.chat.completions.create(
+        model=cfg.model_id,
+        max_tokens=max_tokens,
+        stream=True,
+        messages=[{"role": "user", "content": text}],
+    )
+    async for chunk in stream:
+        if not chunk.choices:
+            continue
+        delta = chunk.choices[0].delta
+        if delta.content:
+            yield delta.content

@@ -10,12 +10,35 @@
 from __future__ import annotations
 
 import asyncio
+import sys
+from collections.abc import AsyncIterator
 
 import typer
 
-from xishi.service.llm import ask as svc_ask
+from xishi.service.llm import ask_stream as svc_ask_stream
 from xishi.service.route import RouteParseError
 from xishi.service.route import route as svc_route
+
+
+def _stream_to_stdout(chunks: AsyncIterator[str]) -> None:
+    """同步外壳：把 service 层的 async iterator 打到 stdout。
+
+    Typer 命令是同步函数——要么命令体内 asyncio.run，要么 helper 包裹。
+    选 helper 保持 CLI handler 简洁；service 层永远不感知谁在调。
+    """
+    async def _drain() -> None:
+        async for chunk in chunks:
+            sys.stdout.write(chunk)
+            sys.stdout.flush()
+        sys.stdout.write("\n")
+
+    try:
+        asyncio.run(_drain())
+    except KeyboardInterrupt:
+        # 用户 Ctrl+C 中断——已经看到的内容不丢，干净退出
+        sys.stdout.write("\n[interrupted]\n")
+        sys.stdout.flush()
+        raise typer.Exit(code=130)
 
 app = typer.Typer(help="夕拾（Xishi）CLI——手帐式第二大脑")
 
@@ -31,9 +54,8 @@ def ask(
     text: str = typer.Argument(..., help="要问的问题"),
     model: str = typer.Option("ds", "--model", "-m", help="模型别名：kimi / kimi-long / ds"),
 ) -> None:
-    """问 LLM 一个问题，打印回复。"""
-    answer = asyncio.run(svc_ask(text, model=model))
-    typer.echo(answer)
+    """问 LLM 一个问题，流式打印回复（打字机效果）。"""
+    _stream_to_stdout(svc_ask_stream(text, model=model))
 
 
 @app.command()
