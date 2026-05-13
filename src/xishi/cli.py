@@ -61,7 +61,7 @@ def ask(
 @app.command()
 def route(
     text: str = typer.Argument(..., help="要分区的一段话"),
-    model: str = typer.Option("kimi", "--model", "-m", help="模型别名：kimi / kimi-long / ds"),
+    model: str = typer.Option("ds", "--model", "-m", help="模型别名：kimi / kimi-long / ds"),
 ) -> None:
     """把一段话路由到夕拾的三个分区之一（或多个）。"""
     try:
