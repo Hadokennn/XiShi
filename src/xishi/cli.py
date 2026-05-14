@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
+import json
 from collections.abc import AsyncIterator
 
 import typer
@@ -74,6 +75,10 @@ def route(
 
     primary = result.primary_zone_id
     primary_conf = result.zone_confidence[primary]
+    print(f"\n{'─' * 72}")
+    typer.echo(f"输入：{text}\n")
+    typer.echo(f"模型输出：\n{json.dumps(result.model_dump(), indent=2, ensure_ascii=False)}")
+    print(f"\n{'─' * 72}")
     typer.echo(
         f"► {primary} ({_ZONE_LABEL[primary]} · 主) · {primary_conf:.2f}"
     )

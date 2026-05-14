@@ -101,19 +101,19 @@ async def call_real_stream(provider: str, prompt: str, include_usage: bool = Tru
     content_parts: list[str] = []
 
     stream = await client.chat.completions.create(**kwargs)
-    async for chunk in stream:
+    async for chunk in stream:  # ← chunk 是一个一个到的（真流式）
         d = chunk.model_dump()
-        chunks.append(d)
+        chunks.append(d)  # ← 但全塞进 list
         # 提取 delta.content
         try:
             delta_content = d["choices"][0]["delta"].get("content") if d["choices"] else None
         except (IndexError, KeyError, AttributeError):
             delta_content = None
         if delta_content:
-            content_parts.append(delta_content)
+            content_parts.append(delta_content)  # ← content 也是攒着
 
     elapsed = time.perf_counter() - t0
-    return chunks, elapsed, "".join(content_parts)
+    return chunks, elapsed, "".join(content_parts)  # ← 全收完才 return
 
 
 async def observe(provider: str, real: bool, label: str, prompt: str) -> None:

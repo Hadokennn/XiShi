@@ -52,7 +52,7 @@ def _parse(raw: str) -> RouteResult:
     return RouteResult.model_validate(payload)
 
 
-async def route(text: str, model: str = "kimi") -> RouteResult:
+async def route(text: str, model: str = "ds") -> RouteResult:
     if not text.strip():
         raise ValueError("text 不能为空")
     if model not in MODELS:
