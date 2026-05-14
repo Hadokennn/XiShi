@@ -16,6 +16,7 @@ from collections.abc import AsyncIterator
 
 import typer
 
+from xishi.prompts.route import DEFAULT_ROUTE_VERSION, ROUTE_CONFIGS
 from xishi.service.llm import ask_stream as svc_ask_stream
 from xishi.service.route import RouteParseError
 from xishi.service.route import route as svc_route
@@ -63,20 +64,30 @@ def ask(
 def route(
     text: str = typer.Argument(..., help="要分区的一段话"),
     model: str = typer.Option("ds", "--model", "-m", help="模型别名：kimi / kimi-long / ds"),
+    version: str = typer.Option(
+        DEFAULT_ROUTE_VERSION,
+        "--version",
+        "-v",
+        help=f"prompt 版本，可选：{sorted(ROUTE_CONFIGS)}",
+    ),
 ) -> None:
     """把一段话路由到夕拾的三个分区之一（或多个）。"""
     try:
-        result = asyncio.run(svc_route(text, model=model))
+        result = asyncio.run(svc_route(text, model=model, version=version))
     except RouteParseError as e:
         typer.echo(f"❌ 路由失败：{e.last_error}", err=True)
         typer.echo(f"\n第一次 raw：{e.raw_first}", err=True)
         typer.echo(f"第二次 raw：{e.raw_second}", err=True)
         raise typer.Exit(code=1)
 
+    config = ROUTE_CONFIGS[version]
     primary = result.primary_zone_id
     primary_conf = result.zone_confidence[primary]
     print(f"\n{'─' * 72}")
-    typer.echo(f"输入：{text}\n")
+    typer.echo(f"输入：{text}")
+    typer.echo(
+        f"版本：{config.id} · 模型：{model} · prefix={config.prefix_hash(model)} · full={config.full_hash(model)}\n"
+    )
     typer.echo(f"模型输出：\n{json.dumps(result.model_dump(), indent=2, ensure_ascii=False)}")
     print(f"\n{'─' * 72}")
     typer.echo(
